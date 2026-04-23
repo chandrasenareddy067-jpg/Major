@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <section class="glass-card admin-dashboard admin-dark" style="max-width:1200px; margin:18px auto;">
+        <div class="section-heading" style="align-items:center; display:flex; gap:16px; justify-content:space-between;">
+          <div>
+            <p class="eyebrow">Admin</p>
+            <h2 style="margin:0;">Applications & Analytics</h2>
+            <p class="section-note">Overview of users, applications and model-backed explanations.</p>
+          </div>
+          <div style="width:260px;">
+            <canvas id="top-approval-bar" width="260" height="120"></canvas>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:18px; align-items:stretch; margin:18px 0 8px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:160px;">
+            <div class="glass-card" style="padding:12px; background:transparent; border:none; box-shadow:none;">
+              <div style="font-weight:700; color:var(--muted);">Users</div>
+              <div style="font-size:1.2rem; color:var(--accent-warm);">{{ users_count }}</div>
+            </div>
+          </div>
+          <div style="flex:1; min-width:160px;">
+            <div class="glass-card" style="padding:12px; background:transparent; border:none; box-shadow:none;">
+              <div style="font-weight:700; color:var(--muted);">Applications</div>
+              <div style="font-size:1.2rem; color:var(--accent-warm);">{{ total_apps }}</div>
+            </div>
+          </div>
+          <div style="flex:1; min-width:160px;">
+            <div class="glass-card" style="padding:12px; background:transparent; border:none; box-shadow:none;">
+              <div style="font-weight:700; color:var(--muted);">Approvals</div>
+              <div style="font-size:1.2rem; color:var(--success);">{{ approvals }}</div>
+            </div>
+          </div>
+          <div style="flex:1; min-width:160px;">
+            <div class="glass-card" style="padding:12px; background:transparent; border:none; box-shadow:none;">
+              <div style="font-weight:700; color:var(--muted);">Rejections</div>
+              <div style="font-size:1.2rem; color:var(--danger);">{{ rejections }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="analytics-grid" style="display:grid; grid-template-columns: 1fr 360px; gap:18px; margin-bottom:16px;">
+          <div class="glass-card" style="padding:12px;">
+            <h3 style="margin-top:0;">Loan-level approvals</h3>
+            <div class="pies-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+              {% for loan in loan_stats %}
+                <div style="text-align:center; padding:8px;">
+                  <canvas id="pie-{{ loop.index0 }}" width="140" height="120"></canvas>
+                  <div class="muted" style="font-size:0.9rem; margin-top:6px;">{{ loan.label }}</div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="glass-card" style="padding:12px;">
+            <h3 style="margin-top:0;">Applications by loan type</h3>
+            <canvas id="count-bar" width="320" height="320"></canvas>
+          </div>
+        </div>
+
+        <div class="glass-card" style="padding:12px;">
+          <h3 style="margin-top:0;">Applications</h3>
+            {% if not applications %}
+              <p class="muted">No applications yet.</p>
+            {% else %}
+              <div style="overflow:auto;">
+                <table class="admin-table compact" style="width:100%; border-collapse:collapse; font-size:0.92rem;">
+                  <thead>
+                    <tr>
+                      <th style="width:48px;">ID</th>
+                      <th style="width:200px;">User</th>
+                      <th style="width:160px;">Type</th>
+                      <th style="width:90px;">Status</th>
+                      <th style="width:80px;">Prob</th>
+                      <th style="width:56px;">⚑</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for a in applications %}
+                      <tr>
+                        <td>{{ a.id }}</td>
+                        <td style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ a.user_email or '—' }}</td>
+                        <td>{{ a.loan_type }}</td>
+                        <td>{{ a.predicted_status or '—' }}</td>
+                        <td>{{ a.predicted_probability or '—' }}</td>
+                        <td style="text-align:center;"><button title="Explain" class="secondary-button" style="padding:6px 8px; border-radius:8px;" onclick="showExplanation({{ a.id }})">💡</button></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </section>
+    </div>
+
+    <!-- Explanation modal -->
+    <div id="explain-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div class="modal">
+        <button id="explain-close" class="secondary-button" style="float:right;">Close</button>
+        <h3 id="explain-title">Explanation</h3>
+        <p id="explain-summary"></p>
+        <div id="explain-strengths"></div>
+        <div id="explain-concerns"></div>
+        <div id="explain-recs"></div>
+      </div>
+    </div>
+
+    <script>
+      const loanStats = {{ loan_stats | tojson }};
+      const apps = {{ applications | tojson }};
+
+      const textColor = '#e6eef8';
+      const gridColor = 'rgba(255,255,255,0.06)';
+
+      // Top approvals vs rejections bar (small)
+      (function(){
+        const approvals = {{ approvals }};
+        const rejections = {{ rejections }};
+        const ctx = document.getElementById('top-approval-bar').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Approvals','Rejections'],
+            datasets: [{ data: [approvals, rejections], backgroundColor: ['#1f6a45','#a03347'] }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { ticks: { color: textColor }, grid: { color: gridColor } },
+              y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+            }
+          }
+        });
+      })();
+
+      // Create pie charts for each loan type
+      (function(){
+        loanStats.forEach((loan, idx) => {
+          const approved = loan.approved || 0;
+          const rejected = (loan.total || 0) - approved;
+          const el = document.getElementById(`pie-${idx}`);
+          if (!el) return;
+          new Chart(el.getContext('2d'), {
+            type: 'pie',
+            data: { labels: ['Approved','Rejected'], datasets: [{ data: [approved, rejected], backgroundColor: ['#1f6a45','#a03347'] }] },
+            options: { plugins: { legend: { labels: { color: textColor } } }, responsive: true }
+          });
+        });
+      })();
+
+      // Bar chart: number of applications per loan type
+      (function(){
+        const labels = loanStats.map(l => l.label);
+        const counts = loanStats.map(l => l.total || 0);
+        const ctx = document.getElementById('count-bar').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: { labels: labels, datasets: [{ label: 'Applications', data: counts, backgroundColor: 'rgba(108,99,255,0.9)' }] },
+          options: {
+            plugins: { legend: { display: false } },
+            responsive: true,
+            scales: {
+              x: { ticks: { color: textColor }, grid: { color: gridColor } },
+              y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+            }
+          }
+        });
+      })();
+
+      // Explanation modal handling
+      function showExplanation(id){
+        const modal = document.getElementById('explain-modal');
+        const title = document.getElementById('explain-title');
+        const summary = document.getElementById('explain-summary');
+        const strengths = document.getElementById('explain-strengths');
+        const concerns = document.getElementById('explain-concerns');
+        const recs = document.getElementById('explain-recs');
+        title.textContent = `Explanation for application ${id}`;
+        summary.textContent = 'Loading...';
+        strengths.innerHTML = concerns.innerHTML = recs.innerHTML = '';
+        modal.classList.remove('hidden');
+
+        fetch(`/admin/explain/${id}`).then(r => r.json()).then(data => {
+          if (data.error){ summary.textContent = data.error; return; }
+          const insights = data.insights || {};
+          summary.textContent = insights.summary || '';
+          if ((insights.strengths||[]).length){
+            strengths.innerHTML = '<h4>Strengths</h4><ul>'+insights.strengths.map(s=>`<li>${s.detail}</li>`).join('')+'</ul>';
+          }
+          if ((insights.concerns||[]).length){
+            concerns.innerHTML = '<h4>Concerns</h4><ul>'+insights.concerns.map(s=>`<li>${s.detail}</li>`).join('')+'</ul>';
+          }
+          if ((insights.recommendations||[]).length){
+            recs.innerHTML = '<h4>Recommendations</h4><ul>'+insights.recommendations.map(r=>`<li>${r}</li>`).join('')+'</ul>';
+          }
+        }).catch(err => { summary.textContent = 'Failed to fetch explanation'; });
+      }
+
+      document.getElementById('explain-close').addEventListener('click', ()=>{
+        document.getElementById('explain-modal').classList.add('hidden');
+      });
+    </script>
+  </body>
+</html>

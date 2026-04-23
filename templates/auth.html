@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Login / Sign up</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <div class="page-shell">
+      {% include "_site_nav.html" %}
+      <section class="glass-card" style="max-width:980px; margin:36px auto;">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Account</p>
+            <h2>Sign in or create an account</h2>
+            <p class="section-note">Create an account to save applications and view history.</p>
+          </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <section class="flash-stack">
+              {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+              {% endfor %}
+            </section>
+          {% endif %}
+        {% endwith %}
+
+        <div class="auth-grid" role="region" aria-label="authentication">
+          <div class="auth-column">
+            <h3 class="auth-title">Existing applicant — Log in</h3>
+            <form method="post" action="{{ url_for('auth.login') }}" class="auth-form" novalidate>
+              <input type="hidden" name="loan_type" value="{{ loan_type }}">
+              <div class="form-row">
+                <label for="login-email">Email</label>
+                <input id="login-email" name="email" type="email" placeholder="you@company.com" required>
+              </div>
+              <div class="form-row">
+                <label for="login-password">Password</label>
+                <input id="login-password" name="password" type="password" placeholder="Choose a strong password" required>
+              </div>
+              <div class="auth-actions">
+                <button class="primary-button" type="submit">Log in</button>
+                <a class="auth-ghost" href="{{ url_for('index') }}">Back</a>
+              </div>
+            </form>
+          </div>
+
+          <div class="auth-column">
+            <h3 class="auth-title">New applicant — Create an account</h3>
+            <form method="post" action="{{ url_for('auth.signup') }}" class="auth-form" novalidate>
+              <input type="hidden" name="loan_type" value="{{ loan_type }}">
+              <div class="form-row">
+                <label for="signup-email">Email</label>
+                <input id="signup-email" name="email" type="email" placeholder="you@company.com" required>
+              </div>
+              <div class="form-row">
+                <label for="signup-phone">Phone</label>
+                <input id="signup-phone" name="phone" type="tel" placeholder="Optional">
+              </div>
+              <div class="form-row">
+                <label for="signup-password">Create password</label>
+                <input id="signup-password" name="password" type="password" placeholder="At least 8 characters" required>
+              </div>
+              <div class="form-row">
+                <label for="signup-confirm">Confirm password</label>
+                <input id="signup-confirm" name="confirm_password" type="password" placeholder="Repeat password" required>
+              </div>
+              <div class="auth-actions">
+                <button class="primary-button" type="submit">Sign up</button>
+                <a class="auth-ghost" href="{{ url_for('index') }}">Back</a>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </section>
+    </div>
+
+    <script>
+      // Auto-dismiss flash messages after a few seconds
+      (function(){
+        const flashes = Array.from(document.querySelectorAll('.flash-message'));
+        if (!flashes.length) return;
+        // show once, then fade
+        setTimeout(() => {
+          flashes.forEach(el => el.classList.add('fade-out'));
+        }, 4200);
+        setTimeout(() => {
+          flashes.forEach(el => el.remove());
+        }, 4600);
+      })();
+      // Focus first input for convenience
+      (function(){
+        const first = document.querySelector('.auth-form input');
+        if (first) first.focus();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Info</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="page-shell">
+        {% include "_site_nav.html" %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <section class="glass-card account-hero">
+            <div>
+                <p class="eyebrow">My Account</p>
+                <h1>Check your profile and lending activity.</h1>
+                <p class="section-text">Your saved profile details and quick application stats live here, so you can review your account before starting a new loan form.</p>
+            </div>
+            <a class="secondary-button account-hero-action" href="{{ url_for('applications_history') }}">View My Applications</a>
+        </section>
+
+        <main class="account-layout">
+            <section class="glass-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Profile Details</p>
+                        <h2>User Information</h2>
+                    </div>
+                </div>
+                <div class="detail-grid">
+                    <article class="detail-card">
+                        <span class="detail-label">Email</span>
+                        <strong>{{ user_profile.email }}</strong>
+                    </article>
+                    <article class="detail-card">
+                        <span class="detail-label">Phone</span>
+                        <strong>{{ user_profile.phone or 'Not provided' }}</strong>
+                    </article>
+                    <article class="detail-card">
+                        <span class="detail-label">Joined</span>
+                        <strong>{{ user_profile.created_at.strftime('%d %b %Y') if user_profile.created_at else 'Unknown' }}</strong>
+                    </article>
+                    <article class="detail-card">
+                        <span class="detail-label">Account Status</span>
+                        <strong>{{ 'Active' if user_profile.is_active else 'Inactive' }}</strong>
+                    </article>
+                </div>
+            </section>
+
+            <section class="glass-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Application Snapshot</p>
+                        <h2>Your Results Summary</h2>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <article class="stat-card">
+                        <span class="metric-number">{{ total_applications }}</span>
+                        <span class="metric-label">total applications</span>
+                    </article>
+                    <article class="stat-card">
+                        <span class="metric-number">{{ approved_applications }}</span>
+                        <span class="metric-label">approved results</span>
+                    </article>
+                    <article class="stat-card">
+                        <span class="metric-number">{{ rejected_applications }}</span>
+                        <span class="metric-label">rejected results</span>
+                    </article>
+                </div>
+
+                <div class="account-latest">
+                    <h3>Latest application</h3>
+                    {% if latest_application %}
+                        <p>
+                            {{ loan_labels.get(latest_application.loan_type, latest_application.loan_type.title()) }}
+                            was marked <strong>{{ latest_application.predicted_status or 'Pending' }}</strong>
+                            {% if latest_application.predicted_probability is not none %}
+                                with {{ '%.2f'|format(latest_application.predicted_probability) }}% confidence
+                            {% endif %}
+                            on {{ latest_application.created_at.strftime('%d %b %Y, %I:%M %p') if latest_application.created_at else 'an earlier date' }}.
+                        </p>
+                    {% else %}
+                        <p class="muted">No applications have been saved yet. Start from the home page to create your first prediction.</p>
+                    {% endif %}
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<nav class="site-nav glass-card" aria-label="Primary">
+    <a class="site-nav-brand" href="{{ url_for('index') }}">
+        <span class="site-nav-brand-mark">LendLogic</span>
+        <span class="site-nav-brand-copy">Smart lending workspace</span>
+    </a>
+
+    <div class="site-nav-links">
+        <a class="site-nav-link {% if active_page == 'home' %}is-active{% endif %}" href="{{ url_for('index') }}">Home</a>
+
+        {% if current_user %}
+            <a class="site-nav-link {% if active_page == 'profile' %}is-active{% endif %}" href="{{ url_for('profile') }}">My Info</a>
+            <a class="site-nav-link {% if active_page == 'applications' %}is-active{% endif %}" href="{{ url_for('applications_history') }}">My Applications</a>
+            <div class="site-nav-user">
+                <span class="site-nav-user-email">{{ current_user.email }}</span>
+                <form method="post" action="{{ url_for('auth.logout') }}">
+                    <button class="site-nav-action" type="submit">Log out</button>
+                </form>
+            </div>
+        {% else %}
+            <a class="site-nav-link {% if active_page == 'auth' %}is-active{% endif %}" href="{{ url_for('auth.login') }}">Log in</a>
+        {% endif %}
+    </div>
+</nav>

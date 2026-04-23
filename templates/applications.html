@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Applications</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="page-shell">
+        {% include "_site_nav.html" %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <section class="glass-card account-hero">
+            <div>
+                <p class="eyebrow">History</p>
+                <h1>Review your previous applications and prediction results.</h1>
+                <p class="section-text">Each saved application shows the loan type, final prediction, submitted values, and the main strengths, risks, and recommendations generated for your account.</p>
+            </div>
+            <a class="secondary-button account-hero-action" href="{{ url_for('index') }}">Start New Application</a>
+        </section>
+
+        <section class="history-list">
+            {% if applications %}
+                {% for application in applications %}
+                    <article class="glass-card history-card">
+                        <div class="history-card-top">
+                            <div>
+                                <p class="eyebrow">Application #{{ application.id }}</p>
+                                <h2>{{ application.loan_label }}</h2>
+                                <p class="muted">{{ application.created_at.strftime('%d %b %Y, %I:%M %p') if application.created_at else 'Unknown date' }}</p>
+                            </div>
+                            <div class="history-result {{ application.predicted_status|lower }}">
+                                <span>{{ application.predicted_status }}</span>
+                                {% if application.predicted_probability is not none %}
+                                    <strong>{{ '%.2f'|format(application.predicted_probability) }}%</strong>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="history-grid">
+                            <section class="history-block">
+                                <h3>Submitted Details</h3>
+                                {% if application.form_data %}
+                                    <div class="history-tags">
+                                        {% for field, value in application.form_data.items() %}
+                                            <span class="history-tag"><strong>{{ field.replace('_', ' ').title() }}:</strong> {{ value }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="muted">No form fields were stored for this application.</p>
+                                {% endif %}
+                            </section>
+
+                            <section class="history-block">
+                                <h3>Positive Signals</h3>
+                                {% if application.positive_signals %}
+                                    <ul class="history-points">
+                                        {% for item in application.positive_signals %}
+                                            <li>{{ item }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="muted">No standout positive signals were stored.</p>
+                                {% endif %}
+                            </section>
+
+                            <section class="history-block">
+                                <h3>Risk Signals</h3>
+                                {% if application.negative_signals %}
+                                    <ul class="history-points">
+                                        {% for item in application.negative_signals %}
+                                            <li>{{ item }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="muted">No major risk signal was stored.</p>
+                                {% endif %}
+                            </section>
+
+                            <section class="history-block">
+                                <h3>Recommendations</h3>
+                                {% if application.recommendations %}
+                                    <ul class="history-points">
+                                        {% for item in application.recommendations %}
+                                            <li>{{ item }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="muted">No follow-up recommendation was stored.</p>
+                                {% endif %}
+                            </section>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <article class="glass-card empty-state">
+                    <h2>No saved applications yet</h2>
+                    <p class="muted">Once you submit a prediction while logged in, it will appear here with its result and saved analysis.</p>
+                </article>
+            {% endif %}
+        </section>
+    </div>
+</body>
+</html>

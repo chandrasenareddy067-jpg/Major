@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Approval Copilot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(11, 20, 44, 0.58); display:flex; align-items:center; justify-content:center; z-index:1000; padding: 20px; }
+        .modal { background: linear-gradient(180deg, #fffdfa 0%, #f6f0e6 100%); padding: 24px; border-radius: 24px; width: 92%; max-width: 640px; max-height: min(84vh, 760px); overflow-y: auto; box-shadow: 0 24px 60px rgba(10, 18, 38, 0.28); border: 1px solid rgba(188, 150, 86, 0.24); }
+        .modal.hidden, .modal-backdrop.hidden { display: none; }
+        .modal .prob { font-size: 28px; font-weight: 700; margin-top: 6px; }
+        .modal-status { margin: 0; font-size: 0.82rem; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+        .modal .status.approved { color: #1f6a45; }
+        .modal .status.rejected { color: #9f3044; }
+        .modal .modal-actions { margin-top: 12px; display:flex; gap:8px; justify-content:flex-end; }
+        .modal-analysis { display: grid; gap: 16px; margin-top: 20px; }
+        .modal-block { padding: 16px; border-radius: 18px; background: rgba(255, 255, 255, 0.45); border: 1px solid rgba(188, 150, 86, 0.14); }
+        .modal-block h3 { margin: 0 0 8px; color: #17264d; }
+        .modal-list { margin: 0; padding-left: 18px; }
+        .modal-list li { margin-bottom: 8px; line-height: 1.5; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        {% include "_site_nav.html" %}
+        <div class="background-orb orb-a"></div>
+        <div class="background-orb orb-b"></div>
+
+        <header id="hero-stage" class="hero-stage glass-card">
+            <div class="hero-topbar">
+                <div class="brand-mark">LendLogic</div>
+            </div>
+            <div class="hero-copy">
+                <p class="hero-kicker">AI-led underwriting intelligence</p>
+                <h1>Precision Credit Scoring for the Modern Economy.</h1>
+                <p class="hero-text">
+                    Structured scoring, clear underwriting analysis, and a lending workflow built for modern
+                    credit teams.
+                </p>
+                <p class="hero-tagline">Every need. One platform. Zero hassle.</p>
+            </div>
+            <button id="hero-reveal" type="button" class="scroll-cue bottom-right" aria-label="Show highlights">
+                <span class="scroll-cue-icon" aria-hidden="true">&darr;</span>
+            </button>
+        </header>
+
+        <section id="intro-band" class="hero-panel glass-card intro-panel intro-band hidden">
+            <div class="intro-band-copy">
+                <p class="panel-label">Why it feels effortless and best</p>
+                <h2>High speed, strong control, and modern credit clarity.</h2>
+            </div>
+            <div class="hero-metrics intro-metrics">
+                <div>
+                    <span class="metric-number">7</span>
+                    <span class="metric-label">loan categories</span>
+                </div>
+                <div>
+                    <span class="metric-number">Fast &amp; Accurate</span>
+                    <span class="metric-label">guided decisions</span>
+                </div>
+                <div>
+                    <span class="metric-number">10.6K+</span>
+                    <span class="metric-label">historical rows</span>
+                </div>
+                <div>
+                    <span class="metric-number">Clear</span>
+                    <span class="metric-label">risk explanations</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="signature-stage" class="glass-card signature-stage hidden">
+            <div class="hero-signature">
+                <div class="signature-card">
+                    <span class="signature-title">Dominant</span>
+                    <p>Commanding visual hierarchy that keeps decisions in focus.</p>
+                </div>
+                <div class="signature-card">
+                    <span class="signature-title">Explainable</span>
+                    <p>Every prediction comes with strengths, risks, and next steps.</p>
+                </div>
+                <div class="signature-card">
+                    <span class="signature-title">Unified</span>
+                    <p>One premium workspace for every loan product in the portfolio.</p>
+                </div>
+            </div>
+            <div class="signature-controls">
+                <button id="signature-back" type="button" class="scroll-cue scroll-cue-inline up" aria-label="Back to hero" title="Back">
+                    <span class="scroll-cue-icon" aria-hidden="true">&uarr;</span>
+                </button>
+                <button id="signature-reveal" type="button" class="scroll-cue scroll-cue-inline bottom-right" aria-label="Show loan types">
+                    <span class="scroll-cue-icon" aria-hidden="true">&darr;</span>
+                </button>
+            </div>
+        </section>
+
+        <section id="loan-selection" class="glass-card loan-selection hidden">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Choose Loan Type</p>
+                    <h2>Select a lending product</h2>
+                    <!-- <p class="section-text">Pick the loan category first and the application workspace will open in a focused single-view flow.</p> -->
+                    <p class="section-note">we finance your future.</p>
+                </div>
+            </div>
+            <div class="loan-controls" style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:12px;">
+                <button id="loan-back" type="button" class="scroll-cue scroll-cue-inline up" aria-label="Back to signature" title="Back">
+                    <span class="scroll-cue-icon" aria-hidden="true">&uarr;</span>
+                </button>
+            </div>
+            <div class="loan-grid">
+                {% for key, meta in datasets.items() %}
+                    <button type="button" class="loan-tile" data-loan="{{ key }}">
+                        <div class="loan-icon" aria-hidden="true">
+                            {% if key == "agriculture" %}
+                                <span class="loan-icon-glyph">🌾</span>
+                            {% elif key == "bike" %}
+                                <span class="loan-icon-glyph">🏍️</span>
+                            {% elif key == "business" %}
+                                <span class="loan-icon-glyph">💼</span>
+                            {% elif key == "car" %}
+                                <span class="loan-icon-glyph">🚗</span>
+                            {% elif key == "education" %}
+                                <span class="loan-icon-glyph">🎓</span>
+                            {% elif key == "home" %}
+                                <span class="loan-icon-glyph">🏠</span>
+                            {% elif key == "personal" %}
+                                <span class="loan-icon-glyph">👤</span>
+                            {% else %}
+                                <span class="loan-icon-glyph">💳</span>
+                            {% endif %}
+                        </div>
+                        <div class="loan-copy">
+                            <div class="loan-label">{{ meta.label }}</div>
+                            <div class="loan-meta">Open application</div>
+                        </div>
+                    </button>
+                {% endfor %}
+            </div>
+        </section>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <main class="content-grid form-only">
+            <section id="predictor-section" class="glass-card predictor-card">
+                <div class="section-heading form-heading">
+                    <div>
+                        <p class="eyebrow">Application Form</p>
+                        <h2 id="selected-loan-title">Choose a loan type</h2>
+                    </div>
+                    <button id="change-loan-type" class="secondary-button hidden" type="button">Change Loan Type</button>
+                </div>
+
+                <form id="prediction-form" method="post" action="{{ url_for('predict_form') }}">
+                    <input id="loan_type" type="hidden" name="loan_type" value="{{ selected_loan }}">
+                    <div id="field-grid" class="field-grid"></div>
+                    <button class="primary-button" type="submit">Predict Approval Status</button>
+                </form>
+            </section>
+        </main>
+
+        <section id="batch-section" class="glass-card batch-card">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Batch Scoring</p>
+                    <h2>Score an entire CSV</h2>
+                </div>
+            </div>
+            <p class="batch-text">
+                Upload a CSV with the same columns as the selected loan dataset. The downloaded file will include
+                <code>approval_probability</code> and <code>predicted_status</code>.
+            </p>
+
+            <form class="batch-form" method="post" action="{{ url_for('batch_predict') }}" enctype="multipart/form-data">
+                <input id="batch-loan-type" type="hidden" name="loan_type" value="{{ selected_loan }}">
+                <input type="file" name="batch_file" accept=".csv" required>
+                <button class="secondary-button" type="submit">Run Batch Prediction</button>
+            </form>
+        </section>
+
+        <!-- Prediction modal popup (shown when server returns a prediction) -->
+        <div id="prediction-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+            <div class="modal" id="prediction-modal">
+                <div>
+                    <p id="modal-status" class="modal-status status"></p>
+                    <div class="prob" id="modal-probability"></div>
+                    <p id="modal-confidence" class="muted"></p>
+                    <p id="modal-summary"></p>
+                    <div class="modal-analysis">
+                        <div class="modal-block">
+                            <h3>Positive signals</h3>
+                            <ul id="modal-strengths" class="modal-list"></ul>
+                            <p id="modal-strengths-empty" class="muted hidden">No standout strength was found beyond the baseline approval pattern.</p>
+                        </div>
+                        <div class="modal-block">
+                            <h3>Risk signals</h3>
+                            <ul id="modal-concerns" class="modal-list"></ul>
+                            <p id="modal-concerns-empty" class="muted hidden">The profile does not show a major risk factor compared with historical rejections.</p>
+                        </div>
+                        <div class="modal-block">
+                            <h3>Recommended next moves</h3>
+                            <ul id="modal-recommendations" class="modal-list"></ul>
+                            <p id="modal-recommendations-empty" class="muted hidden">No additional recommendations are needed beyond the current application details.</p>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="secondary-button" id="modal-close" type="button">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script id="field-specs" type="application/json">{{ field_specs | tojson }}</script>
+    <script id="current-values" type="application/json">{{ current_values | tojson }}</script>
+    <script id="dataset-info" type="application/json">{{ dataset_info | tojson }}</script>
+    <script id="metrics-data" type="application/json">{{ metrics | tojson }}</script>
+    <script id="prediction-result" type="application/json">{{ prediction_result | tojson }}</script>
+    <script id="user-state" type="application/json">{{ {'logged_in': user_logged_in} | tojson }}</script>
+    <script>
+        const fieldSpecs = (function(){ const el = document.getElementById('field-specs'); return el ? JSON.parse(el.textContent) : {}; })();
+        const currentValues = (function(){ const el = document.getElementById('current-values'); return el ? JSON.parse(el.textContent) : {}; })();
+        const datasetInfo = (function(){ const el = document.getElementById('dataset-info'); return el ? JSON.parse(el.textContent) : {}; })();
+        const metrics = (function(){ const el = document.getElementById('metrics-data'); return el ? JSON.parse(el.textContent) : {}; })();
+        const predictionResult = (function(){ const el = document.getElementById('prediction-result'); return el ? JSON.parse(el.textContent) : null; })();
+        const useServerValues = false; // always render empty form; user must fill all details
+
+        const loanTypeSelect = document.getElementById("loan_type");
+        const batchLoanTypeInput = document.getElementById("batch-loan-type");
+        const fieldGrid = document.getElementById("field-grid");
+        const selectedLoanTitle = document.getElementById("selected-loan-title");
+        const changeLoanTypeButton = document.getElementById("change-loan-type");
+        const heroStage = document.getElementById("hero-stage");
+        const heroRevealButton = document.getElementById("hero-reveal");
+        const introBand = document.getElementById("intro-band");
+        const signatureStage = document.getElementById("signature-stage");
+        const signatureRevealButton = document.getElementById("signature-reveal");
+        const loanLabels = Object.fromEntries(
+            Array.from(document.querySelectorAll('.loan-tile')).map((btn) => [
+                btn.dataset.loan,
+                btn.querySelector('.loan-label') ? btn.querySelector('.loan-label').textContent : btn.dataset.loan
+            ])
+        );
+
+        function createField(spec, loanKey) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "field-card";
+
+            const label = document.createElement("label");
+            label.setAttribute("for", spec.name);
+            label.textContent = spec.label;
+            wrapper.appendChild(label);
+
+            if (spec.type === "categorical") {
+                const select = document.createElement("select");
+                select.id = spec.name;
+                select.name = spec.name;
+                select.required = true;
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select...';
+                placeholder.selected = true;
+                select.appendChild(placeholder);
+
+                spec.options.forEach((optionValue) => {
+                    const option = document.createElement("option");
+                    option.value = optionValue;
+                    option.textContent = optionValue;
+                    if (useServerValues && currentValues[spec.name] === optionValue) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+
+                wrapper.appendChild(select);
+            } else {
+                const input = document.createElement("input");
+                input.type = "number";
+                input.id = spec.name;
+                input.name = spec.name;
+                input.required = true;
+                input.step = spec.step;
+                input.min = spec.min;
+                input.max = spec.max;
+                if (useServerValues && (currentValues[spec.name] !== undefined && currentValues[spec.name] !== null && currentValues[spec.name] !== "")) {
+                    input.value = currentValues[spec.name];
+                } else {
+                    input.value = '';
+                }
+                input.placeholder = spec.median ?? '';
+                wrapper.appendChild(input);
+
+                const hint = document.createElement("p");
+                hint.className = "field-hint";
+                hint.textContent = `Typical range ${spec.min} to ${spec.max}`;
+                wrapper.appendChild(hint);
+            }
+
+            return wrapper;
+        }
+
+        function renderFields(loanKey) {
+            fieldGrid.innerHTML = "";
+            fieldSpecs[loanKey].forEach((spec) => {
+                fieldGrid.appendChild(createField(spec, loanKey));
+            });
+        }
+
+        function updateLoanTitle(loanKey) {
+            selectedLoanTitle.textContent = loanLabels[loanKey] || "Loan Application";
+            batchLoanTypeInput.value = loanKey;
+        }
+
+        function refreshWorkspace() {
+            const loanKey = loanTypeSelect.value;
+            renderFields(loanKey);
+            updateLoanTitle(loanKey);
+        }
+
+        const loanSelection = document.getElementById('loan-selection');
+        const predictorSection = document.getElementById('predictor-section');
+        const batchSection = document.getElementById('batch-section');
+
+        function showLandingStart() {
+            if (heroStage) heroStage.classList.remove('hidden');
+            if (heroRevealButton) heroRevealButton.classList.remove('hidden');
+            if (introBand) introBand.classList.add('hidden');
+            if (signatureStage) signatureStage.classList.add('hidden');
+            if (signatureRevealButton) signatureRevealButton.classList.remove('hidden');
+            if (loanSelection) loanSelection.classList.add('hidden');
+            if (predictorSection) predictorSection.classList.add('hidden');
+            if (batchSection) batchSection.classList.add('hidden');
+            if (changeLoanTypeButton) changeLoanTypeButton.classList.add('hidden');
+        }
+
+        function revealHighlights() {
+            if (introBand) introBand.classList.remove('hidden');
+            if (signatureStage) signatureStage.classList.remove('hidden');
+            if (heroStage) heroStage.classList.add('hidden');
+            if (heroRevealButton) heroRevealButton.classList.add('hidden');
+        }
+
+        function revealLoanSelection() {
+            if (loanSelection) loanSelection.classList.remove('hidden');
+            if (signatureRevealButton) signatureRevealButton.classList.add('hidden');
+            if (signatureStage) signatureStage.classList.add('hidden');
+            if (introBand) introBand.classList.add('hidden');
+        }
+
+        function showFormForLoan(loanKey, options = {}) {
+            const { focusFirstField = true, scrollIntoForm = true } = options;
+            if (loanSelection) loanSelection.classList.add('hidden');
+            if (predictorSection) predictorSection.classList.remove('hidden');
+            if (batchSection) batchSection.classList.add('hidden');
+            if (heroStage) heroStage.classList.add('hidden');
+            if (introBand) introBand.classList.add('hidden');
+            if (signatureStage) signatureStage.classList.add('hidden');
+            if (changeLoanTypeButton) changeLoanTypeButton.classList.remove('hidden');
+            loanTypeSelect.value = loanKey;
+            refreshWorkspace();
+            if (scrollIntoForm) {
+                predictorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (focusFirstField) {
+                const first = document.querySelector('#field-grid input, #field-grid select');
+                if (first) first.focus();
+            }
+        }
+
+        function showLoanSelection() {
+            showLandingStart();
+        }
+
+        document.querySelectorAll('.loan-tile').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.loan;
+                if (key) {
+                    // require authentication first
+                    window.location.href = `/auth/login?loan_type=${encodeURIComponent(key)}`;
+                }
+            });
+        });
+
+        if (heroRevealButton) {
+            heroRevealButton.addEventListener('click', revealHighlights);
+        }
+
+        if (signatureRevealButton) {
+            signatureRevealButton.addEventListener('click', revealLoanSelection);
+        }
+
+        if (changeLoanTypeButton) {
+            changeLoanTypeButton.addEventListener('click', showLoanSelection);
+        }
+
+        const signatureBack = document.getElementById('signature-back');
+        const loanBack = document.getElementById('loan-back');
+
+        function showSignatureStage() {
+            if (loanSelection) loanSelection.classList.add('hidden');
+            if (signatureStage) signatureStage.classList.remove('hidden');
+            if (signatureRevealButton) signatureRevealButton.classList.remove('hidden');
+            if (introBand) introBand.classList.remove('hidden');
+            if (heroStage) heroStage.classList.add('hidden');
+        }
+
+        if (signatureBack) {
+            signatureBack.addEventListener('click', showLandingStart);
+        }
+
+        if (loanBack) {
+            loanBack.addEventListener('click', showSignatureStage);
+        }
+
+        const hasCurrentValues = Object.values(currentValues || {}).some((value) => value !== "" && value !== null && value !== undefined);
+        const userState = (function(){ const el = document.getElementById('user-state'); return el ? JSON.parse(el.textContent) : { logged_in: false }; })();
+        const userLoggedIn = !!userState.logged_in;
+
+        // Initial UI state: show form for server-returned results, validation errors, or when user is authenticated
+        if (predictionResult || hasCurrentValues || (userLoggedIn && loanTypeSelect.value)) {
+            showFormForLoan(loanTypeSelect.value, { focusFirstField: false, scrollIntoForm: false });
+        } else {
+            showLandingStart();
+        }
+
+        // Show prediction modal when the server returns a prediction result
+        const modalBackdrop = document.getElementById('prediction-modal-backdrop');
+        const modalStatus = document.getElementById('modal-status');
+        const modalProbability = document.getElementById('modal-probability');
+        const modalConfidence = document.getElementById('modal-confidence');
+        const modalSummary = document.getElementById('modal-summary');
+        const modalClose = document.getElementById('modal-close');
+        const modalStrengths = document.getElementById('modal-strengths');
+        const modalStrengthsEmpty = document.getElementById('modal-strengths-empty');
+        const modalConcerns = document.getElementById('modal-concerns');
+        const modalConcernsEmpty = document.getElementById('modal-concerns-empty');
+        const modalRecommendations = document.getElementById('modal-recommendations');
+        const modalRecommendationsEmpty = document.getElementById('modal-recommendations-empty');
+
+        function fillModalList(listEl, items, formatter, emptyEl) {
+            listEl.innerHTML = '';
+            const safeItems = Array.isArray(items) ? items : [];
+            if (!safeItems.length) {
+                listEl.classList.add('hidden');
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                return;
+            }
+
+            listEl.classList.remove('hidden');
+            if (emptyEl) emptyEl.classList.add('hidden');
+
+            safeItems.forEach((item) => {
+                const li = document.createElement('li');
+                formatter(li, item);
+                listEl.appendChild(li);
+            });
+        }
+
+        function showModalForPrediction(result) {
+            if (!result) return;
+            modalBackdrop.classList.remove('hidden');
+            modalStatus.textContent = result.status || '';
+            modalStatus.className = 'modal-status status ' + (result.status || '').toLowerCase();
+            modalProbability.textContent = (result.probability || 0) + '%';
+            modalConfidence.textContent = result.confidence_band || '';
+            modalSummary.textContent = (result.insights && result.insights.summary) || '';
+            fillModalList(modalStrengths, result.insights && result.insights.strengths, (li, item) => {
+                const strong = document.createElement('strong');
+                strong.textContent = `${item.label}: `;
+                li.appendChild(strong);
+                li.appendChild(document.createTextNode(item.detail));
+            }, modalStrengthsEmpty);
+            fillModalList(modalConcerns, result.insights && result.insights.concerns, (li, item) => {
+                const strong = document.createElement('strong');
+                strong.textContent = `${item.label}: `;
+                li.appendChild(strong);
+                li.appendChild(document.createTextNode(item.detail));
+            }, modalConcernsEmpty);
+            fillModalList(modalRecommendations, result.insights && result.insights.recommendations, (li, item) => {
+                li.textContent = item;
+            }, modalRecommendationsEmpty);
+            modalClose.focus();
+        }
+
+        function hideModal() {
+            modalBackdrop.classList.add('hidden');
+        }
+
+        modalClose.addEventListener('click', hideModal);
+        modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) hideModal(); });
+
+        if (predictionResult) {
+            showModalForPrediction(predictionResult);
+        }
+    </script>
+</body>
+</html>
