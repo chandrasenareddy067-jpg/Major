@@ -5,3 +5,4 @@ SQLAlchemy>=1.4,<3.0
 PyMySQL>=1.0.2
 joblib
 psycopg2-binary
+gunicorn
